@@ -204,14 +204,14 @@ void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_argb8888(_lv_draw_sw_blend_
     LV_UNUSED(dest_stride);
 
     /*Simple fill*/
-    ESP_LOGI(TAG_ARGB888, "Dest buff from struct = %p\n", dsc->dest_buf);
+    //ESP_LOGI(TAG_ARGB888, "Dest buff from struct = %p\n", dsc->dest_buf);
     if(mask == NULL && opa >= LV_OPA_MAX) {
         //if(LV_RESULT_INVALID == LV_DRAW_SW_COLOR_BLEND_TO_ARGB8888(dsc)) {
         if (use_asm) {
             LV_DRAW_SW_COLOR_BLEND_TO_ARGB8888(dsc);
         } else {
             uint32_t color32 = lv_color_to_u32(dsc->color);
-            ESP_LOGI(TAG_ARGB888, "COLOR = 0x%x\n", color32);
+            //ESP_LOGI(TAG_ARGB888, "COLOR = 0x%x\n", color32);
             uint32_t * dest_buf = dsc->dest_buf;
             for(y = 0; y < h; y++) {
                 for(x = 0; x < w - 16; x += 16) {

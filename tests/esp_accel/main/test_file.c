@@ -17,13 +17,21 @@
 
 #include "lv_blend_esp32.h"
 
-#define W_LEN 4
-#define H_LEN 4
+#define W_LEN 7
+#define H_LEN 7
 #define STRIDE W_LEN
 #define CANARY_BITS 4
 #define TOTAL_LEN ((H_LEN * STRIDE) + (CANARY_BITS * 2))
 #define DEST_ALIGNED 1
-#define UNALIGNMENT_BITS 1
+#define UNALIGNMENT_BITS 0
+
+static const char* TAG_ARGB888_TEST = "SW_BLEND_ARGB8888_TEST";
+
+lv_color_t test_color = {
+    .blue = 0x56,
+    .green = 0x34,
+    .red = 0x12,
+};
 
 TEST_CASE("lv_fill_argb8888 functionality", "[test]")
 {
@@ -37,12 +45,6 @@ TEST_CASE("lv_fill_argb8888 functionality", "[test]")
 
     uint8_t *dest_buff_asm = NULL;
     uint8_t *dest_buff_ansi = NULL;
-
-    lv_color_t color = {
-        .blue = 0x56,
-        .green = 0x34,
-        .red = 0x12,
-    };
 
     dest_buff_asm = (uint8_t *)mem_asm + UNALIGNMENT_BITS;
     dest_buff_ansi = (uint8_t *)mem_ansi + UNALIGNMENT_BITS;
@@ -70,7 +72,7 @@ TEST_CASE("lv_fill_argb8888 functionality", "[test]")
     dsc_asm.dest_h = H_LEN;
     dsc_asm.dest_w = W_LEN;
     dsc_asm.dest_stride = STRIDE * sizeof(uint32_t);
-    dsc_asm.color = color;
+    dsc_asm.color = test_color;
     dsc_asm.mask_buf = NULL;
     dsc_asm.opa = LV_OPA_MAX;
 
@@ -79,7 +81,7 @@ TEST_CASE("lv_fill_argb8888 functionality", "[test]")
     dsc_ansi.dest_h = H_LEN;
     dsc_ansi.dest_w = W_LEN;
     dsc_ansi.dest_stride = STRIDE * sizeof(uint32_t);
-    dsc_ansi.color = color;
+    dsc_ansi.color = test_color;
     dsc_ansi.mask_buf = NULL;
     dsc_ansi.opa = LV_OPA_MAX;
 
@@ -105,79 +107,161 @@ TEST_CASE("lv_fill_argb8888 functionality", "[test]")
     free(mem_ansi);
 }
 
-TEST_CASE("Test1", "[test]")
+static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_bit) 
 {
-    printf("Hello from test\n");
+
+    const unsigned int total_len = ((h * stride) + (CANARY_BITS * 2));
+
+    uint32_t *mem_asm   = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_bit * sizeof(uint8_t)));
+    uint32_t *mem_ansi  = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_bit * sizeof(uint8_t)));
+
+    uint8_t *dest_buff_asm = NULL;
+    uint8_t *dest_buff_ansi = NULL;
+
+    dest_buff_asm = (uint8_t *)mem_asm + unalign_bit;
+    dest_buff_ansi = (uint8_t *)mem_ansi + unalign_bit;
+
+    for (int i = 0; i < CANARY_BITS; i++){
+        ((uint32_t *)dest_buff_asm)[i] = 0;
+        ((uint32_t *)dest_buff_ansi)[i] = 0;
+    }
+
+    for (int i = CANARY_BITS; i < (h * stride) + CANARY_BITS; i++){
+        ((uint32_t *)dest_buff_asm)[i] = 0x1;
+        ((uint32_t *)dest_buff_ansi)[i] = 0x1;
+    }
+
+    for (int i = total_len - CANARY_BITS; i < total_len; i++){
+        ((uint32_t *)dest_buff_asm)[i] = 0;
+        ((uint32_t *)dest_buff_ansi)[i] = 0;
+    }
+
+    dest_buff_asm += CANARY_BITS * sizeof(uint32_t);
+    dest_buff_ansi += CANARY_BITS * sizeof(uint32_t);
+
+    _lv_draw_sw_blend_fill_dsc_t dsc_asm = {
+        .dest_buf = (void *)dest_buff_asm,
+        .dest_h = h,
+        .dest_w = w,
+        .dest_stride = stride * sizeof(uint32_t),
+        .color = test_color,
+        .mask_buf = NULL,
+        .opa = LV_OPA_MAX,
+    };
+
+    _lv_draw_sw_blend_fill_dsc_t dsc_ansi = {
+        .dest_buf = (void *)dest_buff_ansi,
+        .dest_h = h,
+        .dest_w = w,
+        .dest_stride = stride * sizeof(uint32_t),
+        .color = test_color,
+        .mask_buf = NULL,
+        .opa = LV_OPA_MAX,
+    };
+
+    //ESP_LOGI("TAG", "USE ASM");
+    lv_draw_sw_blend_color_to_argb8888(&dsc_asm, true);
+    //ESP_LOGI("TAG", "USE ANSI");
+    lv_draw_sw_blend_color_to_argb8888(&dsc_ansi, false);
+
+    dest_buff_asm -= CANARY_BITS * sizeof(uint32_t);
+    dest_buff_ansi -= CANARY_BITS * sizeof(uint32_t);
+
+    TEST_ASSERT_EACH_EQUAL_UINT32(0, (uint32_t *)dest_buff_ansi, CANARY_BITS);
+    TEST_ASSERT_EACH_EQUAL_UINT32(0, (uint32_t *)dest_buff_asm, CANARY_BITS);
+    TEST_ASSERT_EQUAL_UINT32_ARRAY((uint32_t *)dest_buff_asm + CANARY_BITS, (uint32_t *)dest_buff_ansi + CANARY_BITS, h * stride);
+    TEST_ASSERT_EACH_EQUAL_UINT32(0, (uint32_t *)dest_buff_ansi + (total_len - CANARY_BITS), CANARY_BITS);
+    TEST_ASSERT_EACH_EQUAL_UINT32(0, (uint32_t *)dest_buff_asm + (total_len - CANARY_BITS), CANARY_BITS);
+
+    free(mem_ansi);
+    free(mem_asm);
 }
 
-//static portMUX_TYPE testnlock = portMUX_INITIALIZER_UNLOCKED;
-//
-//TEST_CASE("lv_fill_argb8888_ansi benchmark", "[test]")
-//{
-//    uint32_t *dest_buff  = (uint32_t *)malloc(128 * 128 * sizeof(uint32_t));
-//    lv_color_t color = {
-//        .blue = 0,
-//        .green = 0,
-//        .red = 0
-//    };
-//
-//    _lv_draw_sw_blend_fill_dsc_t dsc;
-//    dsc.dest_buf = (void*)dest_buff;
-//    dsc.dest_h = 128;
-//    dsc.dest_w = 128;
-//    dsc.dest_stride = 128;
-//    dsc.color = color;
-//    dsc.mask_buf = NULL;
-//    dsc.opa = LV_OPA_MAX;
-//
-//    portENTER_CRITICAL(&testnlock);
-//    lv_draw_sw_blend_color_to_argb8888(&dsc, true);
-//
-//    const unsigned int start_b = xthal_get_ccount();
-//    const unsigned int repeat_count = 1000;
-//    for (int i = 0; i < repeat_count; i++) {
-//        lv_draw_sw_blend_color_to_argb8888(&dsc, true);
-//    }
-//    const unsigned int end_b = xthal_get_ccount();
-//    portEXIT_CRITICAL(&testnlock);
-//
-//    const float total_b = end_b - start_b;
-//    const float cycles = total_b / (repeat_count);
-//    printf("\nBenchmark lv_fill_argb8888_ansi - %.2f per sample\n\n", cycles);
-//
-//    free(dest_buff);
-//}
-//
-//TEST_CASE("lv_fill_argb8888_aes3 benchmark", "[test]")
-//{
-//    uint32_t *dest_buff  = (uint32_t *)malloc(128 * 128 * sizeof(uint32_t));
-//    lv_color_t color = {
-//        .blue = 0,
-//        .green = 0,
-//        .red = 0
-//    };
-//
-//    _lv_draw_sw_blend_fill_dsc_t dsc;
-//    dsc.dest_buf = (void*)dest_buff;
-//    dsc.dest_h = 128;
-//    dsc.dest_w = 128;
-//    dsc.dest_stride = 128;
-//    dsc.color = color;
-//
-//    portENTER_CRITICAL(&testnlock);
-//    lv_draw_sw_blend_color_to_argb8888(&dsc, true);
-//
-//    const unsigned int start_b = xthal_get_ccount();
-//    const unsigned int repeat_count = 1000;
-//    for (int i = 0; i < repeat_count; i++) {
-//        lv_draw_sw_blend_color_to_argb8888(&dsc, true);
-//    }
-//    const unsigned int end_b = xthal_get_ccount();
-//    portEXIT_CRITICAL(&testnlock);
-//
-//    const float total_b = end_b - start_b;
-//    const float cycles = total_b / (repeat_count);
-//    printf("\nBenchmark lv_fill_argb8888_aes3 - %.2f per sample\n\n", cycles);
-//
-//    free(dest_buff);
-//}
+TEST_CASE("lv_fill_argb8888 functionality all", "[test]")
+{
+
+    const unsigned int min_w = 4;
+    const unsigned int min_h = 4;
+    const unsigned int max_w = 16;
+    const unsigned int max_h = 16;
+    const unsigned int min_unalign_bit = 0;
+    const unsigned int max_unalign_bit = 128;
+    unsigned int test_combinations = 0;
+
+
+    for (int w = min_w; w <= max_w; w++) {
+        for (int h = min_h; h <= max_h; h++) {
+            for (int stride = w; stride <= w * 2; stride++) {
+                for (int unalign_bit = min_unalign_bit; unalign_bit <= max_unalign_bit; unalign_bit += 32) {
+                    lv_fill_argb8888_functionality(w, h, stride, unalign_bit);
+                    test_combinations++;
+                }
+            }
+        }
+    }
+
+    ESP_LOGI(TAG_ARGB888_TEST, "Test combinations: %d\n", test_combinations);
+
+}
+
+static portMUX_TYPE testnlock = portMUX_INITIALIZER_UNLOCKED;
+
+static float lv_fill_argb8888_benchmark(_lv_draw_sw_blend_fill_dsc_t *dsc, bool use_asm)
+{
+    const unsigned int repeat_count = 1000;
+
+    portENTER_CRITICAL(&testnlock);
+    lv_draw_sw_blend_color_to_argb8888(dsc, use_asm);
+
+    const unsigned int start_b = xthal_get_ccount();
+    for (int i = 0; i < repeat_count; i++) {
+        lv_draw_sw_blend_color_to_argb8888(dsc, use_asm);
+    }
+    const unsigned int end_b = xthal_get_ccount();
+    portEXIT_CRITICAL(&testnlock);
+
+    const float total_b = end_b - start_b;
+    const float cycles = total_b / (repeat_count);
+    return cycles;
+}
+
+TEST_CASE("lv_fill_argb8888_aes3 benchmark", "[test]")
+{
+    const unsigned int w = 128;
+    const unsigned int h = 128;
+    const unsigned int stride = h;
+    const unsigned int unalign_bit = 4;
+
+    uint32_t *dest_buff_align16  = (uint32_t *)memalign(16, w * h * sizeof(uint32_t) + (unalign_bit * sizeof(uint8_t)));
+    uint32_t *dest_buff_align4 = dest_buff_align16 + (unalign_bit * sizeof(uint8_t));
+
+    _lv_draw_sw_blend_fill_dsc_t dsc = {
+        .dest_buf = (void *)dest_buff_align16,
+        .dest_h = h,
+        .dest_w = w,
+        .dest_stride = stride * sizeof(uint32_t),
+        .color = test_color,
+        .mask_buf = NULL,
+        .opa = LV_OPA_MAX,
+    };
+
+    float cycles_asm  = lv_fill_argb8888_benchmark(&dsc, true);
+    float cycles_ansi = lv_fill_argb8888_benchmark(&dsc, false);
+    float improvement = cycles_ansi / cycles_asm;
+    ESP_LOGI(TAG_ARGB888_TEST, "Benchmark aes3 ideal case: %.2f per sample", cycles_asm);
+    ESP_LOGI(TAG_ARGB888_TEST, "Benchmark ansi ideal case: %.2f per sample", cycles_ansi);
+    ESP_LOGI(TAG_ARGB888_TEST, "Improvement: %.2f times\n", improvement);
+
+    dsc.dest_buf = dest_buff_align4;
+    dsc.dest_h = w - 1;
+    dsc.dest_w = h - 1;
+
+    cycles_asm  = lv_fill_argb8888_benchmark(&dsc, true);
+    cycles_ansi = lv_fill_argb8888_benchmark(&dsc, false);
+    improvement = cycles_ansi / cycles_asm;
+    ESP_LOGI(TAG_ARGB888_TEST, "Benchmark aes3 common case: %.2f per sample", cycles_asm);
+    ESP_LOGI(TAG_ARGB888_TEST, "Benchmark ansi common case: %.2f per sample", cycles_ansi);
+    ESP_LOGI(TAG_ARGB888_TEST, "Improvement: %.2f times", improvement);
+
+    free(dest_buff_align16);
+}

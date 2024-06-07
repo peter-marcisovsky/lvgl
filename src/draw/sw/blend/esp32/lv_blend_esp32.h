@@ -59,6 +59,7 @@ static const char *TAG_ARGB888_H = "LV_BLEND_H";
  **********************/
 
 extern int lv_color_blend_to_argb8888_aes3(asm_dsc_t * asm_dsc);
+extern int lv_color_blend_to_argb8888_ae32(asm_dsc_t * asm_dsc);
 //extern void lv_color_blend_to_argb8888_aes3(void * array);
 static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fill_dsc_t * dsc)
 {
@@ -70,9 +71,10 @@ static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fi
         .src_buf = &dsc->color
     };
 
-    ESP_LOGI(TAG_ARGB888_H, "Calling asm file");
-    int ret = lv_color_blend_to_argb8888_aes3(&asm_dsc);
-    ESP_LOGI(TAG_ARGB888_H, "ASM ret = %d", ret);
+    //ESP_LOGI(TAG_ARGB888_H, "Calling asm file");
+    //int ret = lv_color_blend_to_argb8888_aes3(&asm_dsc);
+    int ret = lv_color_blend_to_argb8888_ae32(&asm_dsc);
+    //ESP_LOGI(TAG_ARGB888_H, "ASM ret = %d", ret);
     return LV_RESULT_OK;
 }
 
