@@ -1,0 +1,4 @@
+gdbinit
+sdkconfig*
+br
+build/
