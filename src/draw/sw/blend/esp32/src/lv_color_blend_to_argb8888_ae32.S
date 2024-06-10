@@ -71,17 +71,6 @@ lv_color_blend_to_argb8888_ae32:
             addi.n      a3,   a3,  4                    // increment dest_buff pointer by 4 bytes
         _mod_4_check:
 
-        //// Check modulo 2 of the dest_w_bits, if - then set 2 bytes
-        //bbci a4, 1, _mod_2_check                        // branch if 1-st bit of dest_w_bits is clear
-        //    s16i        a9,  a3,  0                     // save 16 bits from a7 to dest_buff a3, offset 0 bytes
-        //    addi.n      a3,  a3,  2                     // increment dest_buff pointer by 2 bytes
-        //_mod_2_check:
-
-        //// Check modulo 1 of the dest_w_bits, if - then set 1 byte
-        //bbci a4, 0, _mod_1_check                        // branch if 0-th bit of dest_w_bits is clear
-        //    s8i         a7,  a3,   0                    // save 8 bits from a3 to dest_buff a2, offset 0 bytes
-        //_mod_1_check:
-
         add     a3,  a3,  a6                             // dest_buff + dest_stride
         addi.n  a5,  a5,  -1                             // decrease the outer loop
     bnez a5, .outer_loop

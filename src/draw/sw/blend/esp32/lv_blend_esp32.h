@@ -58,9 +58,9 @@ static const char *TAG_ARGB888_H = "LV_BLEND_H";
  * GLOBAL PROTOTYPES
  **********************/
 
-extern int lv_color_blend_to_argb8888_aes3(asm_dsc_t * asm_dsc);
-extern int lv_color_blend_to_argb8888_ae32(asm_dsc_t * asm_dsc);
-//extern void lv_color_blend_to_argb8888_aes3(void * array);
+extern int lv_color_blend_to_argb8888_aes3(asm_dsc_t * asm_dsc);        // ESP32S3 assembly implementation
+extern int lv_color_blend_to_argb8888_ae32(asm_dsc_t * asm_dsc);        // ESP32 assembly implementation
+
 static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fill_dsc_t * dsc)
 {
     asm_dsc_t asm_dsc = {
@@ -72,8 +72,8 @@ static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fi
     };
 
     //ESP_LOGI(TAG_ARGB888_H, "Calling asm file");
-    //int ret = lv_color_blend_to_argb8888_aes3(&asm_dsc);
-    int ret = lv_color_blend_to_argb8888_ae32(&asm_dsc);
+    int ret = lv_color_blend_to_argb8888_aes3(&asm_dsc);
+    //int ret = lv_color_blend_to_argb8888_ae32(&asm_dsc);
     //ESP_LOGI(TAG_ARGB888_H, "ASM ret = %d", ret);
     return LV_RESULT_OK;
 }
