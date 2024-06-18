@@ -6,7 +6,7 @@ set(STDLIB_DIR ../../../src/stdlib)
 file(GLOB_RECURSE STDLIB_SOURCES ${STDLIB_DIR}/*.c)
 
 
-idf_component_register(SRCS "test_app.c" "test_file.c" "../../../src/misc/lv_color.c" ${DRAW_SOURCES} ${ASM_SOURCES} ${STDLIB_SOURCES}
+idf_component_register(SRCS "test_app_main.c" "test_lv_fill_functionality.c" "test_lv_fill_benchmark.c" "../../../src/misc/lv_color.c" ${DRAW_SOURCES} ${ASM_SOURCES} ${STDLIB_SOURCES}
                     INCLUDE_DIRS ""  ${BLEND_DIR} ${BLEND_DIR}/esp32 ${STDLIB_DIR}
                     REQUIRES unity
                     WHOLE_ARCHIVE)

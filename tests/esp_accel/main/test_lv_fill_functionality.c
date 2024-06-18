@@ -3,11 +3,6 @@
 #include "esp_log.h"
 #include <malloc.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/portable.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-
 #include "lv_draw_sw_blend.h"
 #include "lv_draw_sw_blend_to_l8.h"
 #include "lv_draw_sw_blend_to_al88.h"
@@ -19,14 +14,13 @@
 
 // ------------------------------------------------- Defines -----------------------------------------------------------
 
-
 #define CANARY_BITS 4
 
 // ------------------------------------------------- Macros and Types --------------------------------------------------
 
-static const char* TAG_LV_FILL = "LV Fill";
+static const char* TAG_LV_FILL_FUNC = "LV Fill Functionality";
 
-lv_color_t test_color = {
+static lv_color_t test_color = {
     .blue = 0x56,
     .green = 0x34,
     .red = 0x12,
@@ -106,10 +100,6 @@ TEST_CASE_MULTIPLE_STAGES("LV Fill functionality", "[lv_fill][functionality]",
         argb8888_functionality,
         rgb565_functionality)
 
-TEST_CASE_MULTIPLE_STAGES("LV Fill benchmark", "[lv_fill][benchmark]",
-        argb8888_benchmark,
-        rgb565_benchmark)
-
 // ------------------------------------------------ Test cases stages --------------------------------------------------
 
 static void argb8888_functionality(void)
@@ -148,15 +138,6 @@ static void rgb565_functionality(void)
     functionality_combinations(&test_params);
 }
 
-static void argb8888_benchmark(void)
-{
-
-}
-
-static void rgb565_benchmark(void)
-{
-
-}
 // ------------------------------------------------ Static test functions ----------------------------------------------
 
 
@@ -191,7 +172,7 @@ static void functionality_combinations(func_test_params_t *test_params)
             }
         }
     }
-    ESP_LOGI(TAG_LV_FILL, "Test combinations: %d\n", test_params->test_combinations_count);
+    ESP_LOGI(TAG_LV_FILL_FUNC, "Test combinations: %d\n", test_params->test_combinations_count);
 }
 
 static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_bit)
@@ -245,9 +226,9 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
         .opa = LV_OPA_MAX,
     };
 
-    ESP_LOGD(TAG_LV_FILL, "ARGB8888 Calling ASM file");
+    ESP_LOGD(TAG_LV_FILL_FUNC, "ARGB8888 Calling ASM file");
     lv_draw_sw_blend_color_to_argb8888(&dsc_asm, true);
-    ESP_LOGD(TAG_LV_FILL, "ARGB8888 Calling ANSI file");
+    ESP_LOGD(TAG_LV_FILL_FUNC, "ARGB8888 Calling ANSI file");
     lv_draw_sw_blend_color_to_argb8888(&dsc_ansi, false);
 
     dest_buff_asm -= CANARY_BITS * sizeof(uint32_t);
@@ -314,9 +295,9 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
     dsc_ansi.mask_buf = NULL;
     dsc_ansi.opa = LV_OPA_MAX;
 
-    ESP_LOGD(TAG_LV_FILL, "RGB565 Calling ASM file");
+    ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ASM file");
     lv_draw_sw_blend_color_to_rgb565(&dsc_asm, true);
-    ESP_LOGD(TAG_LV_FILL, "RGB565 Calling ANSI file");
+    ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ANSI file");
     lv_draw_sw_blend_color_to_rgb565(&dsc_ansi, false);
 
     dest_buff_asm -= CANARY_BITS * sizeof(uint16_t);
@@ -324,7 +305,7 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
 
     // Print results
     for (int i = 0; i < total_len; i++){
-        ESP_LOGD(TAG_LV_FILL, "dest_buff[%d] ansi = %8x \t asm = %8x \n", i, ((uint16_t *)dest_buff_ansi)[i], ((uint16_t *)dest_buff_asm)[i]);
+        ESP_LOGD(TAG_LV_FILL_FUNC, "dest_buff[%d] ansi = %8x \t asm = %8x \n", i, ((uint16_t *)dest_buff_ansi)[i], ((uint16_t *)dest_buff_asm)[i]);
     }
 
     char msg_buff[128];
@@ -337,66 +318,4 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
 
     free(mem_asm);
     free(mem_ansi);
-}
-
-static portMUX_TYPE testnlock = portMUX_INITIALIZER_UNLOCKED;
-
-static float lv_fill_argb8888_benchmark(_lv_draw_sw_blend_fill_dsc_t *dsc, bool use_asm)
-{
-    const unsigned int repeat_count = 1000;
-
-    portENTER_CRITICAL(&testnlock);
-    lv_draw_sw_blend_color_to_argb8888(dsc, use_asm);
-
-    const unsigned int start_b = xthal_get_ccount();
-    for (int i = 0; i < repeat_count; i++) {
-        lv_draw_sw_blend_color_to_argb8888(dsc, use_asm);
-    }
-    const unsigned int end_b = xthal_get_ccount();
-    portEXIT_CRITICAL(&testnlock);
-
-    const float total_b = end_b - start_b;
-    const float cycles = total_b / (repeat_count);
-    return cycles;
-}
-
-TEST_CASE("lv_fill_argb8888_aes3 benchmark", "[test]")
-{
-    const unsigned int w = 128;
-    const unsigned int h = 128;
-    const unsigned int stride = h;
-    const unsigned int unalign_bit = 1;
-
-    uint32_t *dest_buff_align16  = (uint32_t *)memalign(16, w * h * sizeof(uint32_t) + (unalign_bit * sizeof(uint8_t)));
-    uint32_t *dest_buff_align4 = dest_buff_align16 + (unalign_bit * sizeof(uint8_t));
-
-    _lv_draw_sw_blend_fill_dsc_t dsc = {
-        .dest_buf = (void *)dest_buff_align16,
-        .dest_h = h,
-        .dest_w = w,
-        .dest_stride = stride * sizeof(uint32_t),
-        .color = test_color,
-        .mask_buf = NULL,
-        .opa = LV_OPA_MAX,
-    };
-
-    float cycles_asm  = lv_fill_argb8888_benchmark(&dsc, true);
-    float cycles_ansi = lv_fill_argb8888_benchmark(&dsc, false);
-    float improvement = cycles_ansi / cycles_asm;
-    ESP_LOGI(TAG_LV_FILL, "Benchmark aes3 ideal case: %.2f per sample", cycles_asm);
-    ESP_LOGI(TAG_LV_FILL, "Benchmark ansi ideal case: %.2f per sample", cycles_ansi);
-    ESP_LOGI(TAG_LV_FILL, "Improvement: %.2f times\n", improvement);
-
-    dsc.dest_buf = dest_buff_align4;
-    dsc.dest_h = w - 1;
-    dsc.dest_w = h - 1;
-
-    cycles_asm  = lv_fill_argb8888_benchmark(&dsc, true);
-    cycles_ansi = lv_fill_argb8888_benchmark(&dsc, false);
-    improvement = cycles_ansi / cycles_asm;
-    ESP_LOGI(TAG_LV_FILL, "Benchmark aes3 common case: %.2f per sample", cycles_asm);
-    ESP_LOGI(TAG_LV_FILL, "Benchmark ansi common case: %.2f per sample", cycles_ansi);
-    ESP_LOGI(TAG_LV_FILL, "Improvement: %.2f times", improvement);
-
-    free(dest_buff_align16);
 }
