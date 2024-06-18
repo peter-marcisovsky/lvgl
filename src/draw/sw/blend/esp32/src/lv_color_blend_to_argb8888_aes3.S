@@ -4,11 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "sdkconfig.h"
+
+#if CONFIG_IDF_TARGET_ESP32S3
+
 // This is LVGL ARGB8888 simple fill for ESP32S3 processor.
     .text
     .align  4
-    .global lv_color_blend_to_argb8888_aes3
-    .type   lv_color_blend_to_argb8888_aes3,@function
+    .global lv_color_blend_to_argb8888_esp32_aes3
+    .global .lv_color_blend_to_argb8888_esp32_ae32_body
+    .type   lv_color_blend_to_argb8888_esp32_aes3,@function
 // The function implements the following C code:
 // void lv_color_blend_to_argb8888(_lv_draw_sw_blend_fill_dsc_t * dsc);
 
@@ -30,7 +35,7 @@
 // } asm_dsc_t;
 
 
-lv_color_blend_to_argb8888_aes3:
+lv_color_blend_to_argb8888_esp32_aes3:
 
     entry      a1,    32
     ee.zero.q  q0                               // dummy TIE instruction, to enable the TIE
@@ -47,9 +52,13 @@ lv_color_blend_to_argb8888_aes3:
     or       a10,    a7,    a8                  // apply oppacity
 
     // Check for short lengths
-    blti     a4,   8,  _short_lengts            // dest_w should be at least 8, othewise it's not worth using esp32s3 TIE
+    // dest_w should be at least 8, othewise it's not worth using esp32s3 TIE
+    bgei     a4,   8,  _esp32s3_implementation          // Branch if dest_w is greater than or equal to 8
+    j .lv_color_blend_to_argb8888_esp32_ae32_body       // Jump to esp32 implementation
 
-    ee.movi.32.q   q0,   a10,  0                // fill q0 register from a10 by 32 bits
+    _esp32s3_implementation:
+
+    ee.movi.32.q   q0,   a10,  0                        // fill q0 register from a10 by 32 bits
     ee.movi.32.q   q0,   a10,  1
     ee.movi.32.q   q0,   a10,  2
     ee.movi.32.q   q0,   a10,  3
@@ -286,41 +295,4 @@ lv_color_blend_to_argb8888_aes3:
     movi.n   a2, 0
     retw.n                                              // return
 
-//**********************************************************************************************************************
-
-    _short_lengts:
-
-    srli    a9,    a4,   2                      // a9 - loop_len = dest_w / 4
-    sub     a6,    a6,   a11                    // dest_stride = dest_stride - dest_w_bits
-
-    .outer_loop_short:
-
-        // Run main loop which sets 16 bytes in one loop run
-        loopnez a9, ._main_loop_short
-            s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3
-            s32i.n      a10,  a3,  4                    // save 32 bits from a10 to dest_buff a3
-            s32i.n      a10,  a3,  8                    // save 32 bits from a10 to dest_buff a3
-            s32i.n      a10,  a3,  12                   // save 32 bits from a10 to dest_buff a3
-            addi.n      a3,   a3,  16                   // increment dest_buff pointer by 16 bytes
-        ._main_loop_short:
-
-        // Finish the remaining bytes out of the loop
-        // Check modulo 8 of the dest_w_bits, if - then set 8 bytes
-        bbci a11, 3, _mod_8_check_short                 // branch if 2-nd bit of dest_w_bits is clear
-            s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
-            s32i.n      a10,  a3,  4                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
-            addi.n      a3,   a3,  8                    // increment dest_buff pointer by 8 bytes
-        _mod_8_check_short:
-
-        // Check modulo 4 of the dest_w_bits, if - then set 4 bytes
-        bbci a11, 2, _mod_4_check_short                 // branch if 2-nd bit of dest_w_bits is clear
-            s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
-            addi.n      a3,   a3,  4                    // increment dest_buff pointer by 4 bytes
-        _mod_4_check_short:
-
-        add     a3,  a3,  a6                             // dest_buff + dest_stride
-        addi.n  a5,  a5,  -1                             // decrease the outer loop
-    bnez a5, .outer_loop_short
-
-    movi.n   a2, 0
-    retw.n                                              // return
+#endif // CONFIG_IDF_TARGET_ESP32S3

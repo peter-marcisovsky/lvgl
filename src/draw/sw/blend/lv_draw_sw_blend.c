@@ -74,7 +74,7 @@ void lv_draw_sw_blend(lv_draw_unit_t * draw_unit, const lv_draw_sw_blend_dsc_t *
 
         switch(layer->color_format) {
             case LV_COLOR_FORMAT_RGB565:
-                lv_draw_sw_blend_color_to_rgb565(&fill_dsc);
+                lv_draw_sw_blend_color_to_rgb565(&fill_dsc, false);
                 break;
             case LV_COLOR_FORMAT_ARGB8888:
                 lv_draw_sw_blend_color_to_argb8888(&fill_dsc, false);
