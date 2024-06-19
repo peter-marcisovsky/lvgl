@@ -1,7 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <string.h>
 #include "unity.h"
 #include "esp_log.h"
 #include <malloc.h>
+#include <inttypes.h>
 
 #include "lv_draw_sw_blend.h"
 #include "lv_draw_sw_blend_to_l8.h"
@@ -11,9 +18,11 @@
 #include "lv_draw_sw_blend_to_rgb888.h"
 
 #include "lv_blend_esp32.h"
+#include "lv_fill_common.h"
 
 // ------------------------------------------------- Defines -----------------------------------------------------------
 
+#define DBG_PRINT_OUTPUT true
 #define CANARY_BITS 4
 
 // ------------------------------------------------- Macros and Types --------------------------------------------------
@@ -25,25 +34,6 @@ static lv_color_t test_color = {
     .green = 0x34,
     .red = 0x12,
 };
-
-typedef enum {
-    ARGB8888,
-    RGB565,
-} color_format_t;
-
-typedef struct {
-    lv_color_t color;                       // Color 24 bit, (RGB, each 8 bit)
-    color_format_t color_format;            // LV data type
-    unsigned int min_w;                     // Minimum width
-    unsigned int min_h;                     // Minimum height
-    unsigned int max_w;                     // Maximum width
-    unsigned int max_h;                     // Maximum height
-    unsigned int min_unalign_bit;           // Minimum amount of unaligned bits
-    unsigned int max_unalign_bit;           // Maximum amount of unaligned bits
-    unsigned int unalign_step;              // Increment step in bits unalignment
-    unsigned int stride_step;               // Increment step in stride
-    unsigned int test_combinations_count;   // Count of fest combinations
-} func_test_params_t;
 
 // ------------------------------------------------ Static function headers --------------------------------------------
 
@@ -69,20 +59,6 @@ static void argb8888_functionality(void);
  * - initialize the RGB565 functionality test case
  */
 static void rgb565_functionality(void);
-
-/**
- * @brief ARGB8888 benchmark test case entry
- *
- * - initialize the ARGB8888 benchmark test case
- */
-static void argb8888_benchmark(void);
-
-/**
- * @brief RGB565 benchmark test case entry
- *
- * - initialize the RGB565 benchmark test case
- */
-static void rgb565_benchmark(void);
 
 /**
  * @brief The actual LV Fill ARGB8888 functionality test
@@ -194,8 +170,8 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
     }
 
     for (int i = CANARY_BITS; i < (h * stride) + CANARY_BITS; i++){
-        ((uint32_t *)dest_buff_asm)[i] = 0x1;
-        ((uint32_t *)dest_buff_ansi)[i] = 0x1;
+        ((uint32_t *)dest_buff_asm)[i] = i;
+        ((uint32_t *)dest_buff_ansi)[i] = i;
     }
 
     for (int i = total_len - CANARY_BITS; i < total_len; i++){
@@ -234,8 +210,16 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
     dest_buff_asm -= CANARY_BITS * sizeof(uint32_t);
     dest_buff_ansi -= CANARY_BITS * sizeof(uint32_t);
 
+    // Print results
+    #if DBG_PRINT_OUTPUT
+    for (uint32_t i = 0; i < total_len; i++){
+        printf("dest_buff[%"PRIi32"] %s ansi = %8"PRIx32" \t asm = %8"PRIx32" \n", i, ((i < 10) ? (" ") : ("")), ((uint32_t *)dest_buff_ansi)[i], ((uint32_t *)dest_buff_asm)[i]);
+    }
+    printf("\n");
+    #endif
+
     char msg_buff[128];
-    sprintf(msg_buff, "LV Fill ARGB8888: w = %d, h = %d, stride = %d, unalign_bit = %d\n\n", w, h, stride, unalign_bit);
+    sprintf(msg_buff, "LV Fill ARGB8888: w = %d, h = %d, stride = %d, unalign_bit = %d\n", w, h, stride, unalign_bit);
     TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_ansi, CANARY_BITS, msg_buff);
     TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_asm, CANARY_BITS, msg_buff);
     TEST_ASSERT_EQUAL_UINT32_ARRAY_MESSAGE((uint32_t *)dest_buff_asm + CANARY_BITS, (uint32_t *)dest_buff_ansi + CANARY_BITS, h * stride, msg_buff);
@@ -277,23 +261,25 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
     dest_buff_asm += CANARY_BITS * sizeof(uint16_t);
     dest_buff_ansi += CANARY_BITS * sizeof(uint16_t);
 
-    _lv_draw_sw_blend_fill_dsc_t dsc_asm;
-    dsc_asm.dest_buf = (void*)dest_buff_asm;
-    dsc_asm.dest_h = h;
-    dsc_asm.dest_w = w;
-    dsc_asm.dest_stride = stride * sizeof(uint16_t);
-    dsc_asm.color = test_color;
-    dsc_asm.mask_buf = NULL;
-    dsc_asm.opa = LV_OPA_MAX;
+    _lv_draw_sw_blend_fill_dsc_t dsc_asm = {
+        .dest_buf = (void *)dest_buff_asm,
+        .dest_h = h,
+        .dest_w = w,
+        .dest_stride = stride * sizeof(uint16_t),
+        .color = test_color,
+        .mask_buf = NULL,
+        .opa = LV_OPA_MAX,
+    };
 
-    _lv_draw_sw_blend_fill_dsc_t dsc_ansi;
-    dsc_ansi.dest_buf = (void*)dest_buff_ansi;
-    dsc_ansi.dest_h = h;
-    dsc_ansi.dest_w = w;
-    dsc_ansi.dest_stride = stride * sizeof(uint16_t);
-    dsc_ansi.color = test_color;
-    dsc_ansi.mask_buf = NULL;
-    dsc_ansi.opa = LV_OPA_MAX;
+    _lv_draw_sw_blend_fill_dsc_t dsc_ansi = {
+        .dest_buf = (void *)dest_buff_ansi,
+        .dest_h = h,
+        .dest_w = w,
+        .dest_stride = stride * sizeof(uint16_t),
+        .color = test_color,
+        .mask_buf = NULL,
+        .opa = LV_OPA_MAX,
+    };
 
     ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ASM file");
     lv_draw_sw_blend_color_to_rgb565(&dsc_asm, true);
@@ -304,12 +290,15 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
     dest_buff_ansi -= CANARY_BITS * sizeof(uint16_t);
 
     // Print results
-    for (int i = 0; i < total_len; i++){
-        ESP_LOGD(TAG_LV_FILL_FUNC, "dest_buff[%d] ansi = %8x \t asm = %8x \n", i, ((uint16_t *)dest_buff_ansi)[i], ((uint16_t *)dest_buff_asm)[i]);
+    #if DBG_PRINT_OUTPUT
+    for (uint32_t i = 0; i < total_len; i++){
+        printf("dest_buff[%"PRIi32"] %s ansi = %4"PRIx16" \t asm = %4"PRIx16" \n", i, ((i < 10) ? (" ") : ("")), ((uint16_t *)dest_buff_ansi)[i], ((uint16_t *)dest_buff_asm)[i]);
     }
+    printf("\n");
+    #endif
 
     char msg_buff[128];
-    sprintf(msg_buff, "LV Fill RGB565: w = %d, h = %d, stride = %d, unalign_bit = %d\n\n", w, h, stride, unalign_bit);
+    sprintf(msg_buff, "LV Fill RGB565: w = %d, h = %d, stride = %d, unalign_bit = %d\n", w, h, stride, unalign_bit);
     TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_ansi, CANARY_BITS, msg_buff);
     TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_asm, CANARY_BITS, msg_buff);
     TEST_ASSERT_EQUAL_UINT16_ARRAY_MESSAGE((uint16_t *)dest_buff_asm + CANARY_BITS, (uint16_t *)dest_buff_ansi + CANARY_BITS, h * stride, msg_buff);

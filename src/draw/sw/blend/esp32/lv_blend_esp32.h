@@ -80,8 +80,10 @@ static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fi
     ESP_LOGD(LV_BLEND_H, "Calling asm file");
     #if CONFIG_IDF_TARGET_ESP32S3
         const int ret = lv_color_blend_to_argb8888_esp32_aes3(&asm_dsc);
-    #else
+    #elif (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2)
         const int ret = lv_color_blend_to_argb8888_esp32_ae32(&asm_dsc);
+    #else
+        return LV_RESULT_INVALID;
     #endif
     ESP_LOGD(LV_BLEND_H, "asm return: %d\n", ret);
     return LV_RESULT_OK;
@@ -101,13 +103,15 @@ static inline lv_result_t _lv_color_blend_to_rgb565_esp32(_lv_draw_sw_blend_fill
     };
 
     ESP_LOGD(LV_BLEND_H, "Calling asm file");
-    //#if CONFIG_IDF_TARGET_ESP32S3
-    //    const int ret = lv_color_blend_to_argb8888_esp32_aes3(&asm_dsc);
-    //#else
-    //    const int ret = lv_color_blend_to_argb8888_esp32_ae32(&asm_dsc);
-    //#endif
-    //int ret = lv_color_blend_to_rgb565_aes3(&asm_dsc);
-    int ret = lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);
+    #if CONFIG_IDF_TARGET_ESP32S3
+        //const int ret = lv_color_blend_to_rgb565_esp32_aes3(&asm_dsc);
+        const int ret = lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);    // TODO ESP32S3 assembly not yet implemented
+                                                                            // TODO asm version is slower than ANSI
+    #elif (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2)
+        const int ret = lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);
+    #else
+        return LV_RESULT_INVALID;
+    #endif
     ESP_LOGD(LV_BLEND_H, "asm return: %d\n", ret);
     return LV_RESULT_OK;
 }
