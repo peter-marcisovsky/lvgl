@@ -78,5 +78,5 @@ lv_color_blend_to_argb8888_esp32_ae32:
         addi.n  a5,  a5,  -1                             // decrease the outer loop
     bnez a5, .outer_loop
 
-    movi.n   a2, 1
+    movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return

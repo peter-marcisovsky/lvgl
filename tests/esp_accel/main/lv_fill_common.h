@@ -47,7 +47,7 @@ typedef struct {
  * @brief Benchmark test parameters
  */
 typedef struct {
-    void (*lv_fill_func)(_lv_draw_sw_blend_fill_dsc_t*, bool);  // pointer to the DUT function
+    void (*lv_fill_func)(_lv_draw_sw_blend_fill_dsc_t*);  // pointer to the DUT function
     color_format_t color_format;            // LV color format
     unsigned int height;                    // Test array height
     unsigned int width;                     // Test array width

@@ -22,7 +22,7 @@
 
 // ------------------------------------------------- Defines -----------------------------------------------------------
 
-#define DBG_PRINT_OUTPUT true
+#define DBG_PRINT_OUTPUT false
 #define CANARY_BITS 4
 
 // ------------------------------------------------- Macros and Types --------------------------------------------------
@@ -190,6 +190,7 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
         .color = test_color,
         .mask_buf = NULL,
         .opa = LV_OPA_MAX,
+        .use_asm = true,
     };
 
     _lv_draw_sw_blend_fill_dsc_t dsc_ansi = {
@@ -200,12 +201,13 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
         .color = test_color,
         .mask_buf = NULL,
         .opa = LV_OPA_MAX,
+        .use_asm = false
     };
 
     ESP_LOGD(TAG_LV_FILL_FUNC, "ARGB8888 Calling ASM file");
-    lv_draw_sw_blend_color_to_argb8888(&dsc_asm, true);
+    lv_draw_sw_blend_color_to_argb8888(&dsc_asm);
     ESP_LOGD(TAG_LV_FILL_FUNC, "ARGB8888 Calling ANSI file");
-    lv_draw_sw_blend_color_to_argb8888(&dsc_ansi, false);
+    lv_draw_sw_blend_color_to_argb8888(&dsc_ansi);
 
     dest_buff_asm -= CANARY_BITS * sizeof(uint32_t);
     dest_buff_ansi -= CANARY_BITS * sizeof(uint32_t);
@@ -269,6 +271,7 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
         .color = test_color,
         .mask_buf = NULL,
         .opa = LV_OPA_MAX,
+        .use_asm = true,
     };
 
     _lv_draw_sw_blend_fill_dsc_t dsc_ansi = {
@@ -279,12 +282,13 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
         .color = test_color,
         .mask_buf = NULL,
         .opa = LV_OPA_MAX,
+        .use_asm = false,
     };
 
     ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ASM file");
-    lv_draw_sw_blend_color_to_rgb565(&dsc_asm, true);
+    lv_draw_sw_blend_color_to_rgb565(&dsc_asm);
     ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ANSI file");
-    lv_draw_sw_blend_color_to_rgb565(&dsc_ansi, false);
+    lv_draw_sw_blend_color_to_rgb565(&dsc_ansi);
 
     dest_buff_asm -= CANARY_BITS * sizeof(uint16_t);
     dest_buff_ansi -= CANARY_BITS * sizeof(uint16_t);

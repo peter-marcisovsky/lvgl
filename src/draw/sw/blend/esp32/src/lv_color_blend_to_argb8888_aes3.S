@@ -97,7 +97,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
         addi.n  a5,  a5,  -1                            // decrease the outer loop
     bnez a5, .outer_loop_aligned
 
-    movi.n   a2, 0
+    movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return
 
     _unaligned_by_byte:
@@ -174,7 +174,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
         addi.n  a5,  a5,  -1                            // decrease the outer loop
     bnez a5, .outer_loop_aligned_by_byte
 
-    movi.n   a2, 0
+    movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return
 
     _unaligned_by_bit:
@@ -292,7 +292,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
         addi.n  a5,  a5,  -1                            // decrease the outer loop
     bnez a5, .outer_loop_aligned_by_bit
 
-    movi.n   a2, 0
+    movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return
 
 #endif // CONFIG_IDF_TARGET_ESP32S3

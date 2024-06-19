@@ -69,6 +69,11 @@ extern int lv_color_blend_to_argb8888_esp32_ae32(asm_dsc_t * asm_dsc);        //
 
 static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fill_dsc_t * dsc)
 {
+    // Check if asm variant should be used (Only for testing)
+    if (!dsc->use_asm) {
+        return LV_RESULT_INVALID;
+    }
+
     asm_dsc_t asm_dsc = {
         .dst_buf = dsc->dest_buf,
         .dst_w = dsc->dest_w,
@@ -79,14 +84,12 @@ static inline lv_result_t _lv_color_blend_to_argb8888_esp32(_lv_draw_sw_blend_fi
 
     ESP_LOGD(LV_BLEND_H, "Calling asm file");
     #if CONFIG_IDF_TARGET_ESP32S3
-        const int ret = lv_color_blend_to_argb8888_esp32_aes3(&asm_dsc);
+        return lv_color_blend_to_argb8888_esp32_aes3(&asm_dsc);
     #elif (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2)
-        const int ret = lv_color_blend_to_argb8888_esp32_ae32(&asm_dsc);
+        return lv_color_blend_to_argb8888_esp32_ae32(&asm_dsc);
     #else
         return LV_RESULT_INVALID;
     #endif
-    ESP_LOGD(LV_BLEND_H, "asm return: %d\n", ret);
-    return LV_RESULT_OK;
 }
 
 extern int lv_color_blend_to_rgb565_esp32_aes3(asm_dsc_t * asm_dsc);        // ESP32S3 assembly implementation
@@ -94,6 +97,11 @@ extern int lv_color_blend_to_rgb565_esp32_ae32(asm_dsc_t * asm_dsc);        // E
 
 static inline lv_result_t _lv_color_blend_to_rgb565_esp32(_lv_draw_sw_blend_fill_dsc_t * dsc)
 {
+    // Check if asm variant should be used (Only for testing)
+    if (!dsc->use_asm) {
+        return LV_RESULT_INVALID;
+    }
+
     asm_dsc_t asm_dsc = {
         .dst_buf = dsc->dest_buf,
         .dst_w = dsc->dest_w,
@@ -104,16 +112,14 @@ static inline lv_result_t _lv_color_blend_to_rgb565_esp32(_lv_draw_sw_blend_fill
 
     ESP_LOGD(LV_BLEND_H, "Calling asm file");
     #if CONFIG_IDF_TARGET_ESP32S3
-        //const int ret = lv_color_blend_to_rgb565_esp32_aes3(&asm_dsc);
-        const int ret = lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);    // TODO ESP32S3 assembly not yet implemented
+        //return lv_color_blend_to_rgb565_esp32_aes3(&asm_dsc);
+        return lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);               // TODO ESP32S3 assembly not yet implemented, calling esp32 version for now
                                                                             // TODO asm version is slower than ANSI
     #elif (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2)
-        const int ret = lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);
+        return lv_color_blend_to_rgb565_esp32_ae32(&asm_dsc);
     #else
         return LV_RESULT_INVALID;
     #endif
-    ESP_LOGD(LV_BLEND_H, "asm return: %d\n", ret);
-    return LV_RESULT_OK;
 }
 
 #ifdef __cplusplus

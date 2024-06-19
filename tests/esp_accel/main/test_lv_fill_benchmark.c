@@ -59,7 +59,7 @@ static void lv_fill_benchmark_init(bench_test_params_t *test_params);
 /**
  * @brief Run the benchmark test
  */
-static float lv_fill_benchmark_run(_lv_draw_sw_blend_fill_dsc_t *dsc, bench_test_params_t *test_params, bool use_asm);
+static float lv_fill_benchmark_run(_lv_draw_sw_blend_fill_dsc_t *dsc, bench_test_params_t *test_params);
 
 // ------------------------------------------------ Test cases ---------------------------------------------------------
 
@@ -134,8 +134,10 @@ static void lv_fill_benchmark_init(bench_test_params_t *test_params)
 
     // Run benchmark with the most ideal input parameters
     // Dest array is 16 byte aligned, dest_w and dest_h are dividable by 4
-    float cycles_asm  = lv_fill_benchmark_run(&dsc, test_params, true);
-    float cycles_ansi = lv_fill_benchmark_run(&dsc, test_params, false);
+    dsc.use_asm = true;
+    float cycles_asm  = lv_fill_benchmark_run(&dsc, test_params);
+    dsc.use_asm = false;
+    float cycles_ansi = lv_fill_benchmark_run(&dsc, test_params);
     float improvement = cycles_ansi / cycles_asm;
     ESP_LOGI(TAG_LV_FILL_BENCH, "Benchmark aes3 ideal case: %.2f per sample", cycles_asm);
     ESP_LOGI(TAG_LV_FILL_BENCH, "Benchmark ansi ideal case: %.2f per sample", cycles_ansi);
@@ -147,8 +149,10 @@ static void lv_fill_benchmark_init(bench_test_params_t *test_params)
 
     // Run benchmark with the corner case parameters
     // Dest array is 1 byte aligned, dest_w and dest_h are not dividable by 4
-    cycles_asm  = lv_fill_benchmark_run(&dsc, test_params, true);
-    cycles_ansi = lv_fill_benchmark_run(&dsc, test_params, false);
+    dsc.use_asm = true;
+    cycles_asm  = lv_fill_benchmark_run(&dsc, test_params);
+    dsc.use_asm = false;
+    cycles_ansi = lv_fill_benchmark_run(&dsc, test_params);
     improvement = cycles_ansi / cycles_asm;
     ESP_LOGI(TAG_LV_FILL_BENCH, "Benchmark aes3 common case: %.2f per sample", cycles_asm);
     ESP_LOGI(TAG_LV_FILL_BENCH, "Benchmark ansi common case: %.2f per sample", cycles_ansi);
@@ -156,14 +160,14 @@ static void lv_fill_benchmark_init(bench_test_params_t *test_params)
 
 }
 
-static float lv_fill_benchmark_run(_lv_draw_sw_blend_fill_dsc_t *dsc, bench_test_params_t *test_params, bool use_asm)
+static float lv_fill_benchmark_run(_lv_draw_sw_blend_fill_dsc_t *dsc, bench_test_params_t *test_params)
 {
     portENTER_CRITICAL(&testnlock);
-    (test_params->lv_fill_func)(dsc, use_asm);          // Call the DUT function for the first time to init the benchmark test
+    (test_params->lv_fill_func)(dsc);          // Call the DUT function for the first time to init the benchmark test
 
     const unsigned int start_b = xthal_get_ccount();
     for (int i = 0; i < test_params->benchmark_cycles; i++) {
-        (test_params->lv_fill_func)(dsc, use_asm);
+        (test_params->lv_fill_func)(dsc);
     }
     const unsigned int end_b = xthal_get_ccount();
     portEXIT_CRITICAL(&testnlock);

@@ -178,7 +178,7 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
  * @param mask
  * @param mask_stride
  */
-void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb565(_lv_draw_sw_blend_fill_dsc_t * dsc, bool use_asm)
+void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb565(_lv_draw_sw_blend_fill_dsc_t * dsc)
 {
     int32_t w = dsc->dest_w;
     int32_t h = dsc->dest_h;
@@ -205,10 +205,7 @@ void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_rgb565(_lv_draw_sw_blend_fi
 
     /*Simple fill*/
     if(mask == NULL && opa >= LV_OPA_MAX)  {
-        //if(LV_RESULT_INVALID == LV_DRAW_SW_COLOR_BLEND_TO_RGB565(dsc)) {
-        if (use_asm) {
-            LV_DRAW_SW_COLOR_BLEND_TO_RGB565(dsc);
-        } else {
+        if(LV_RESULT_INVALID == LV_DRAW_SW_COLOR_BLEND_TO_RGB565(dsc)) {
             for(y = 0; y < h; y++) {
                 uint16_t * dest_end_final = dest_buf_u16 + w;
                 uint32_t * dest_end_mid = (uint32_t *)((uint16_t *) dest_buf_u16 + ((w - 1) & ~(0xF)));
