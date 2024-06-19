@@ -24,6 +24,8 @@
     #include LV_DRAW_SW_ASM_CUSTOM_INCLUDE
 #endif
 
+#include "esp32/lv_blend_esp32.h"
+
 /*********************
  *      DEFINES
  *********************/

@@ -24,6 +24,9 @@
     #include LV_DRAW_SW_ASM_CUSTOM_INCLUDE
 #endif
 
+#include "esp_log.h"
+#include "esp32/lv_blend_esp32.h"
+
 /*********************
  *      DEFINES
  *********************/
@@ -69,6 +72,8 @@ static inline void * /* LV_ATTRIBUTE_FAST_MEM */ drawbuf_next_row(const void * b
 /**********************
  *  STATIC VARIABLES
  **********************/
+
+static const char *TAG_ARGB888 = "SW_BLEND_ARGB8888";
 
 /**********************
  *      MACROS
@@ -232,7 +237,6 @@ void LV_ATTRIBUTE_FAST_MEM lv_draw_sw_blend_color_to_argb8888(_lv_draw_sw_blend_
                 dest_buf = drawbuf_next_row(dest_buf, dest_stride);
             }
         }
-
     }
     /*Opacity only*/
     else if(mask == NULL && opa < LV_OPA_MAX) {
