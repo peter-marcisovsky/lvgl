@@ -40,7 +40,7 @@ lv_color_blend_to_rgb565_esp32_ae32:
     l32i.n   a8,    a7,    0                    // a8 - color as value
     slli     a11,   a4,    1                    // a11 - dest_w_bits
 
-    // Convert color to rgb656
+    // Convert color to rgb565
     l8ui    a15,    a7,    2                    // red
     movi.n  a14,    0xf8
     and     a13,    a15,   a14
@@ -62,7 +62,7 @@ lv_color_blend_to_rgb565_esp32_ae32:
     and     a10,    a10,    a13
     or      a10,    a10,    a12                 // a10 = 32-bit color (16bit + (16bit << 16))
 
-    srli    a9,    a4,   3                      // a9 - loop_len = dest_w / 8
+    srli    a9,    a4,   4                      // a9 - loop_len = dest_w / 16
     sub     a6,    a6,   a11                    // dest_stride = dest_stride - dest_w_bits
 
     .outer_loop:
@@ -73,10 +73,23 @@ lv_color_blend_to_rgb565_esp32_ae32:
             s32i.n      a10,  a3,  4                    // save 32 bits from a10 to dest_buff a3
             s32i.n      a10,  a3,  8                    // save 32 bits from a10 to dest_buff a3
             s32i.n      a10,  a3,  12                   // save 32 bits from a10 to dest_buff a3
-            addi.n      a3,   a3,  16                   // increment dest_buff pointer by 16 bytes
+            s32i.n      a10,  a3,  16
+            s32i.n      a10,  a3,  20
+            s32i.n      a10,  a3,  24
+            s32i.n      a10,  a3,  28
+            addi.n      a3,   a3,  32                   // increment dest_buff pointer by 32 bytes
         ._main_loop:
 
         // Finish the remaining bytes out of the loop
+        // Check modulo 16 of the dest_w_bits, if - then set 16 bytes
+        bbci a11, 4, _mod_16_check                       // branch if 2-nd bit of dest_w_bits is clear
+            s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
+            s32i.n      a10,  a3,  4                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
+            s32i.n      a10,  a3,  8                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
+            s32i.n      a10,  a3,  12                   // save 32 bits from a10 to dest_buff a3, offset 0 bytes
+            addi.n      a3,   a3,  16                   // increment dest_buff pointer by 8 bytes
+        _mod_16_check:
+
         // Check modulo 8 of the dest_w_bits, if - then set 8 bytes
         bbci a11, 3, _mod_8_check                       // branch if 2-nd bit of dest_w_bits is clear
             s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
