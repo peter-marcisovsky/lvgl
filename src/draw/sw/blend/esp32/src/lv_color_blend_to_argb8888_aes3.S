@@ -41,12 +41,12 @@ lv_color_blend_to_argb8888_esp32_aes3:
     ee.zero.q  q0                               // dummy TIE instruction, to enable the TIE
 
     l32i.n   a3,    a2,    4                    // a3 - dest_buff
-    l32i.n   a4,    a2,    8                    // a4 - dest_w                in bytes
-    l32i.n   a5,    a2,    12                   // a5 - dest_h                in bytes
-    l32i.n   a6,    a2,    16                   // a6 - dest_stride           in bits
+    l32i.n   a4,    a2,    8                    // a4 - dest_w                in uint32_t
+    l32i.n   a5,    a2,    12                   // a5 - dest_h                in uint32_t
+    l32i.n   a6,    a2,    16                   // a6 - dest_stride           in bytes
     l32i.n   a7,    a2,    20                   // a7 - src_buff (color)
     l32i.n   a8,    a7,    0                    // a8 - color as value
-    slli     a11,   a4,    2                    // a11 - dest_w_bits
+    slli     a11,   a4,    2                    // a11 - dest_w_bytes = sizeof(uint32_t) * dest_w
 
     movi     a7,    0xff000000                  // oppactiy mask
     or       a10,    a7,    a8                  // apply oppacity
@@ -66,15 +66,15 @@ lv_color_blend_to_argb8888_esp32_aes3:
     // Check dest_buff alignment
     movi.n   a7,   0xf                                  // 0xf alignment mask (16-byte alignment)
     and     a15,   a7,  a3                              // 16-byte alignment mask AND dest_buff pointer
-    bnez    a15,   _unaligned_by_byte                   // branch if a15 not equals to zero
+    bnez    a15,   _unaligned_by_4byte                  // branch if a15 not equals to zero
 
     // Check dest_stride alignment
     and     a15,   a7,  a6                              // 16-byte alignment mask AND dest_stride
-    bnez    a15,   _unaligned_by_byte                   // branch if a15 not equals to zero
+    bnez    a15,   _unaligned_by_4byte                  // branch if a15 not equals to zero
 
-    // Check dest_w_bits alignment
-    and     a15,   a7,  a11                             // 16-byte alignment mask AND dest_w_bits
-    bnez    a15,   _unaligned_by_byte                   // branch if a15 not equals to zero
+    // Check dest_w_bytes alignment
+    and     a15,   a7,  a11                             // 16-byte alignment mask AND dest_w_bytes
+    bnez    a15,   _unaligned_by_4byte                  // branch if a15 not equals to zero
 
 //**********************************************************************************************************************
 
@@ -85,7 +85,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
     // dest_w      (a4) - 16-byte multiple
 
     srli    a9,    a4,   2                              // a9 - loop_len = dest_w / 4
-    sub     a6,    a6,   a11                            // dest_stride = dest_stride - dest_w_bits
+    sub     a6,    a6,   a11                            // dest_stride = dest_stride - dest_w_bytes
 
     .outer_loop_aligned:
 
@@ -100,16 +100,16 @@ lv_color_blend_to_argb8888_esp32_aes3:
     movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return
 
-    _unaligned_by_byte:
+    _unaligned_by_4byte:
 
     // Check dest_buff alignment
     movi.n   a7,    0x3                                 // 0x3 alignment mask (4-byte alignment)
     and     a15,    a7,   a3                            // 4-byte alignment mask AND dest_buff pointer
-    bnez    a15,    _unaligned_by_bit                   // branch if a15 not equals to zero
+    bnez    a15,    _unaligned_by_1byte                 // branch if a15 not equals to zero
 
     // Check dest_stride alignment
     and     a15,    a7,   a6                            // 4-byte alignment mask AND dest_stride pointer
-    bnez    a15,    _unaligned_by_bit                   // branch if a15 not equals to zero
+    bnez    a15,    _unaligned_by_1byte                 // branch if a15 not equals to zero
 
 //**********************************************************************************************************************
 
@@ -121,63 +121,63 @@ lv_color_blend_to_argb8888_esp32_aes3:
     // dest_stride (a6) - 16-byte, or 4-byte multiple
     // dest_w      (a4) - 4-byte multiple
 
-    sub      a6,    a6,   a11                           // dest_stride = dest_stride - dest_w_bits
+    sub      a6,    a6,   a11                           // dest_stride = dest_stride - dest_w_bytes
     movi.n   a7,    0xf                                 // 0xf alignment mask
 
-    .outer_loop_aligned_by_byte:
+    .outer_loop_aligned_by_4byte:
 
         // alignment check
         and     a15,   a7,  a3                          // 0xf (alignment mask) AND dest_buff pointer
-        mov     a12,   a11                              // a12 - local_dest_w_bits = dest_w_bits
-        beqz    a15,   _dest_buff_aligned_by_byte       // branch if a15 equals to zero
+        mov     a12,   a11                              // a12 - local_dest_w_bytes = dest_w_bytes
+        beqz    a15,   _dest_buff_aligned_by_4byte       // branch if a15 equals to zero
 
 
             movi.n  a14,   16                           // a14 - 16
             sub     a15,   a14,   a15                   // a15 = 16 - unalignment (lower 4 bits of dest_buff address)
-            sub     a12,   a12,   a15                   // local_dest_w_bits = len - (16 - unalignment)
+            sub     a12,   a12,   a15                   // local_dest_w_bytes = len - (16 - unalignment)
 
             // keep setting until dest_buff is aligned
             // Check modulo 8 of the unalignment, if - then set 8 bytes
-            bbci    a15,  3, _aligning_mod_8_check_byte // branch if 3-rd bit of unalignment a15 is clear
+            bbci    a15,  3, _aligning_mod_8_check_4byte // branch if 3-rd bit of unalignment a15 is clear
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 s32i.n      a10,  a3,  4                // save 32 bits from a10 to dest_buff a3, offset 4 bytes
                 addi.n      a3,   a3,  8                // increment dest_buff pointer by 8 bytes
-            _aligning_mod_8_check_byte:
+            _aligning_mod_8_check_4byte:
 
             // Check modulo 4 of the unalignment, if - then set 4 bytes
-            bbci a15, 2, _aligning_mod_4_check_byte     // branch if 2-nd bit unalignment a15 is clear
+            bbci a15, 2, _aligning_mod_4_check_4byte     // branch if 2-nd bit unalignment a15 is clear
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 addi.n      a3,   a3,  4                // increment dest_buff pointer by 4 bytes
-            _aligning_mod_4_check_byte:
+            _aligning_mod_4_check_4byte:
 
-        _dest_buff_aligned_by_byte:
+        _dest_buff_aligned_by_4byte:
         // Calculate main loop_len
-        srli    a9,    a12,   4                         // a9 - loop_len = local_dest_w_bits / 16
+        srli    a9,    a12,   4                         // a9 - loop_len = local_dest_w_bytes / 16
 
         // Main loop
-        loopnez  a9, ._main_loop_aligned_by_byte      // 16 bytes (4 argb8888) in one loop
+        loopnez  a9, ._main_loop_unaligned_by_4byte     // 16 bytes (4 argb8888) in one loop
             ee.vst.128.ip q0, a3, 16                    // store 16 bytes from q0 to dest_buff a3
-        ._main_loop_aligned_by_byte:
+        ._main_loop_unaligned_by_4byte:
 
         // Check modulo 8 of the dest_w, if - then set 8 bytes
-        bbci a12, 3, _aligned_mod_8_check_byte          // branch if 3-rd bit of local_dest_w_bits a12 is clear
+        bbci a12, 3, _aligned_mod_8_check_4byte         // branch if 3-rd bit of local_dest_w_bytes a12 is clear
             ee.vst.l.64.ip    q0,  a3,  8               // save lower 64 bits from q0 to dest_buff a3, increase dest_buff pointer by 8 bytes
-        _aligned_mod_8_check_byte:
+        _aligned_mod_8_check_4byte:
 
         // Check modulo 4 of the dest_w, if - then set 4 bytes
-        bbci a12, 2, _aligned_mod_4_check_byte          // branch if 2-nd bit of local_dest_w_bits a12 is clear
+        bbci a12, 2, _aligned_mod_4_check_4byte         // branch if 2-nd bit of local_dest_w_bytes a12 is clear
             s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
             addi.n      a3,   a3,  4                    // increment dest_buff pointer by 4 bytes
-        _aligned_mod_4_check_byte:
+        _aligned_mod_4_check_4byte:
 
         add     a3,  a3,  a6                            // dest_buff + dest_stride
         addi.n  a5,  a5,  -1                            // decrease the outer loop
-    bnez a5, .outer_loop_aligned_by_byte
+    bnez a5, .outer_loop_aligned_by_4byte
 
     movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return
 
-    _unaligned_by_bit:
+    _unaligned_by_1byte:
 
 //**********************************************************************************************************************
 
@@ -193,59 +193,59 @@ lv_color_blend_to_argb8888_esp32_aes3:
 
     ee.zero.q   q1                                      // clear q1 
     ee.orq      q1,    q1,   q0                         // copy q0 to q1
-    sub         a6,    a6,   a11                        // dest_stride = dest_stride - dest_w_bits
+    sub         a6,    a6,   a11                        // dest_stride = dest_stride - dest_w_bytes
     movi.n      a7,    0xf                              // 0xf alignment mask
 
-    .outer_loop_aligned_by_bit:
+    .outer_loop_aligned_by_1byte:
 
         // alignment check
         and     a15,   a7,  a3                          // 0xf (alignment mask) AND dest_buff pointer
-        mov     a12,   a11                              // a12 - local_dest_w_bits = dest_w_bits
-        beqz    a15,   _dest_buff_aligned_by_bit        // branch if a15 equals to zero
+        mov     a12,   a11                              // a12 - local_dest_w_bytes = dest_w_bytes
+        beqz    a15,   _dest_buff_aligned_by_1byte      // branch if a15 equals to zero
 
 
             movi.n  a14,   16                           // a14 - 16
             sub     a15,   a14,   a15                   // a15 = 16 - unalignment (lower 4 bits of dest_buff address)
-            sub     a12,   a12,   a15                   // local_dest_w_bits = len - (16 - unalignment)
+            sub     a12,   a12,   a15                   // local_dest_w_bytes = len - (16 - unalignment)
 
             // keep setting until dest_buff is aligned
             // Check modulo 8 of the unalignment, if - then set 8 bytes
-            bbci    a15,  3, _aligning_mod_8_check_bit  // branch if 3-rd bit of unalignment a15 is clear
+            bbci    a15,  3, _aligning_mod_8_check_1byte// branch if 3-rd bit of unalignment a15 is clear
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 s32i.n      a10,  a3,  4                // save 32 bits from a10 to dest_buff a3, offset 4 bytes
                 addi.n      a3,   a3,  8                // increment dest_buff pointer by 8 bytes
-            _aligning_mod_8_check_bit:
+            _aligning_mod_8_check_1byte:
 
             // Check modulo 4 of the unalignment, if - then set 4 bytes
-            bbci a15, 2, _aligning_mod_4_check_bit      // branch if 2-nd bit unalignment a15 is clear
+            bbci a15, 2, _aligning_mod_4_check_1byte    // branch if 2-nd bit unalignment a15 is clear
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 addi.n      a3,   a3,  4                // increment dest_buff pointer by 4 bytes
-            _aligning_mod_4_check_bit:
+            _aligning_mod_4_check_1byte:
 
             // Check modulo 2 and 1 (the following 2 ifs do the same correction)
             // modulo 2 and modulo 1 requires the same action, just once
-            bbci a15, 1, _aligning_mod_2_check_bit
+            bbci a15, 1, _aligning_mod_2_check_1byte
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 addi.n      a3,   a3,  4                // increment dest_buff pointer by 4 bytes
-                j _dest_buff_aligned_by_bit
-            _aligning_mod_2_check_bit:
+                j _dest_buff_aligned_by_1byte
+            _aligning_mod_2_check_1byte:
 
-            bbci a15, 0, _dest_buff_aligned_by_bit
+            bbci a15, 0, _dest_buff_aligned_by_1byte
                 s32i.n      a10,  a3,  0                // save 32 bits from a10 to dest_buff a3, offset 0 bytes
                 addi.n      a3,   a3,  4                // increment dest_buff pointer by 4 bytes
-        _dest_buff_aligned_by_bit:
+        _dest_buff_aligned_by_1byte:
 
         // Shift q reg, allowing to set 16-byte unaligned adata
         wur.sar_byte     a15                            // apply unalignment to the SAR_BYTE
         ee.src.q   q2,  q0,  q1                         // shift concat. of q0 and q1 to q2 by SAR_BYTE amount
 
         // Calculate main loop_len
-        srli    a9,    a12,   4                         // a9 - loop_len = local_dest_w_bits / 16
+        srli    a9,    a12,   4                         // a9 - loop_len = local_dest_w_bytes / 16
 
         // Main loop
-        loopnez  a9, ._main_loop_unaligned_by_bit       // 16 bytes (4 argb8888) in one loop
+        loopnez  a9, ._main_loop_unaligned_by_1byte     // 16 bytes (4 argb8888) in one loop
             ee.vst.128.ip q2, a3, 16                    // store 16 bytes from q0 to dest_buff a3
-        ._main_loop_unaligned_by_bit:
+        ._main_loop_unaligned_by_1byte:
 
         // Firstly check mod 0 and mod 1 - correcting the aligned memory access
         // Go back in one Byte, allow to correct after ee.vst.128.ip aligned access
@@ -253,7 +253,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
 
         // Check modulo 2 of the dest_w, if - then set 2 bytes
         // set SSSS in 0xSSSS0000
-        bbci a12, 1, _aligned_mod_2_check_bit           // branch if 1-st bit of dest_w a12 is clear
+        bbci a12, 1, _aligned_mod_2_check_1byte         // branch if 1-st bit of dest_w a12 is clear
             srli    a14,   a10,  16                     // shift a10 in 16, allowing s16i (saving of lower 16 bits)
             s16i    a14,   a3,   2                      // save 16 bits from a10 to dest_buff a3, offset 2 bytes
 
@@ -263,7 +263,7 @@ lv_color_blend_to_argb8888_esp32_aes3:
                 srli    a14,   a10,  8                  // shift a10 in 8, allowing s8i
                 s8i     a14,   a3,   1                  // save 8 bits from a10 to dest_buff a3, offset 1 byte
                 j _aligned_end
-        _aligned_mod_2_check_bit:
+        _aligned_mod_2_check_1byte:
 
         // Check modulo 1 of the dest_w, if - then set 1 byte
         // set SS in 0xSS000000
@@ -275,22 +275,22 @@ lv_color_blend_to_argb8888_esp32_aes3:
         addi    a3, a3, 4                               // Increase the pointer back, correction for addi    a3, a3, -4
 
         // Check modulo 8 of the dest_w, if - then set 8 bytes
-        bbci a12, 3, _aligned_mod_8_check_bit           // branch if 3-rd bit of local_dest_w_bits a12 is clear
+        bbci a12, 3, _aligned_mod_8_check_1byte         // branch if 3-rd bit of local_dest_w_bytes a12 is clear
             s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
             s32i.n      a10,  a3,  4                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
             addi.n      a3,   a3,  8                    // increment dest_buff pointer by 4 bytes
             //ee.vst.l.64.ip    q2,  a3,  8               // save lower 64 bits from q0 to dest_buff a3, increase dest_buff pointer by 8 bytes
-        _aligned_mod_8_check_bit:
+        _aligned_mod_8_check_1byte:
 
         // Check modulo 4 of the dest_w, if - then set 4 bytes
-        bbci a12, 2, _aligned_mod_4_check_bit           // branch if 2-nd bit of local_dest_w_bits a12 is clear
+        bbci a12, 2, _aligned_mod_4_check_1byte         // branch if 2-nd bit of local_dest_w_bytes a12 is clear
             s32i.n      a10,  a3,  0                    // save 32 bits from a10 to dest_buff a3, offset 0 bytes
             addi.n      a3,   a3,  4                    // increment dest_buff pointer by 4 bytes
-        _aligned_mod_4_check_bit:
+        _aligned_mod_4_check_1byte:
 
         add     a3,  a3,  a6                            // dest_buff + dest_stride
         addi.n  a5,  a5,  -1                            // decrease the outer loop
-    bnez a5, .outer_loop_aligned_by_bit
+    bnez a5, .outer_loop_aligned_by_1byte
 
     movi.n   a2, 1                                      // return LV_RESULT_OK = 1
     retw.n                                              // return

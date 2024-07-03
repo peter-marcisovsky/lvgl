@@ -23,7 +23,7 @@
 // ------------------------------------------------- Defines -----------------------------------------------------------
 
 #define DBG_PRINT_OUTPUT false
-#define CANARY_BITS 4
+#define CANARY_BYTES 4
 
 // ------------------------------------------------- Macros and Types --------------------------------------------------
 
@@ -63,12 +63,12 @@ static void rgb565_functionality(void);
 /**
  * @brief The actual LV Fill ARGB8888 functionality test
  */
-static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_bit);
+static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_byte);
 
 /**
  * @brief The actual LV Fill RGB565 functionality test
  */
-static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_bit);
+static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_byte);
 
 // ------------------------------------------------ Test cases ---------------------------------------------------------
 
@@ -83,12 +83,12 @@ static void argb8888_functionality(void)
     func_test_params_t test_params = {
         .color = test_color,
         .color_format = ARGB8888,
-        .min_w = 4,
-        .min_h = 4,
+        .min_w = 8,             // 8 is the lower limit for the esp32s3 asm implementation, otherwise esp32 is executed
+        .min_h = 1,
         .max_w = 16,
         .max_h = 16,
-        .min_unalign_bit = 0,
-        .max_unalign_bit = 128,
+        .min_unalign_byte = 0,
+        .max_unalign_byte = 16,
         .unalign_step = 1,
         .stride_step = 1,
         .test_combinations_count = 0,
@@ -101,12 +101,12 @@ static void rgb565_functionality(void)
     func_test_params_t test_params = {
         .color = test_color,
         .color_format = RGB565,
-        .min_w = 4,
-        .min_h = 4,
+        .min_w = 8,             // 8 is the lower limit for the esp32s3 asm implementation, otherwise esp32 is executed
+        .min_h = 1,
         .max_w = 16,
         .max_h = 16,
-        .min_unalign_bit = 0,
-        .max_unalign_bit = 128,
+        .min_unalign_byte = 0,
+        .max_unalign_byte = 16,
         .unalign_step = 1,
         .stride_step = 1,
         .test_combinations_count = 0,
@@ -129,15 +129,15 @@ static void functionality_combinations(func_test_params_t *test_params)
             for (int stride = w; stride <= w * 2; stride += test_params->stride_step) {
 
                 // Step unalignment
-                for (int unalign_bit = test_params->min_unalign_bit; unalign_bit <= test_params->max_unalign_bit; unalign_bit += test_params->unalign_step) {
+                for (int unalign_byte = test_params->min_unalign_byte; unalign_byte <= test_params->max_unalign_byte; unalign_byte += test_params->unalign_step) {
                     
                     switch (test_params->color_format) {
                     case ARGB8888: {
-                        lv_fill_argb8888_functionality(w, h, stride, unalign_bit);
+                        lv_fill_argb8888_functionality(w, h, stride, unalign_byte);
                         break;
                     }
                     case RGB565: {
-                        lv_fill_rgb565_functionality(w, h, stride, unalign_bit);
+                        lv_fill_rgb565_functionality(w, h, stride, unalign_byte);
                         break;
                     }
                     default:
@@ -151,36 +151,36 @@ static void functionality_combinations(func_test_params_t *test_params)
     ESP_LOGI(TAG_LV_FILL_FUNC, "Test combinations: %d\n", test_params->test_combinations_count);
 }
 
-static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_bit)
+static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign_byte)
 {
-    const unsigned int total_len = ((h * stride) + (CANARY_BITS * 2));
+    const unsigned int total_len = ((h * stride) + (CANARY_BYTES * 2));
 
-    uint32_t *mem_asm   = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_bit * sizeof(uint8_t)));
-    uint32_t *mem_ansi  = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_bit * sizeof(uint8_t)));
+    uint32_t *mem_asm   = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_byte * sizeof(uint8_t)));
+    uint32_t *mem_ansi  = (uint32_t *)memalign(16, (total_len * sizeof(uint32_t)) + (unalign_byte * sizeof(uint8_t)));
 
     uint8_t *dest_buff_asm = NULL;
     uint8_t *dest_buff_ansi = NULL;
 
-    dest_buff_asm = (uint8_t *)mem_asm + unalign_bit;
-    dest_buff_ansi = (uint8_t *)mem_ansi + unalign_bit;
+    dest_buff_asm = (uint8_t *)mem_asm + unalign_byte;
+    dest_buff_ansi = (uint8_t *)mem_ansi + unalign_byte;
 
-    for (int i = 0; i < CANARY_BITS; i++){
+    for (int i = 0; i < CANARY_BYTES; i++){
         ((uint32_t *)dest_buff_asm)[i] = 0;
         ((uint32_t *)dest_buff_ansi)[i] = 0;
     }
 
-    for (int i = CANARY_BITS; i < (h * stride) + CANARY_BITS; i++){
+    for (int i = CANARY_BYTES; i < (h * stride) + CANARY_BYTES; i++){
         ((uint32_t *)dest_buff_asm)[i] = i;
         ((uint32_t *)dest_buff_ansi)[i] = i;
     }
 
-    for (int i = total_len - CANARY_BITS; i < total_len; i++){
+    for (int i = total_len - CANARY_BYTES; i < total_len; i++){
         ((uint32_t *)dest_buff_asm)[i] = 0;
         ((uint32_t *)dest_buff_ansi)[i] = 0;
     }
 
-    dest_buff_asm += CANARY_BITS * sizeof(uint32_t);
-    dest_buff_ansi += CANARY_BITS * sizeof(uint32_t);
+    dest_buff_asm += CANARY_BYTES * sizeof(uint32_t);
+    dest_buff_ansi += CANARY_BYTES * sizeof(uint32_t);
 
     _lv_draw_sw_blend_fill_dsc_t dsc_asm = {
         .dest_buf = (void *)dest_buff_asm,
@@ -209,8 +209,8 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
     ESP_LOGD(TAG_LV_FILL_FUNC, "ARGB8888 Calling ANSI file");
     lv_draw_sw_blend_color_to_argb8888(&dsc_ansi);
 
-    dest_buff_asm -= CANARY_BITS * sizeof(uint32_t);
-    dest_buff_ansi -= CANARY_BITS * sizeof(uint32_t);
+    dest_buff_asm -= CANARY_BYTES * sizeof(uint32_t);
+    dest_buff_ansi -= CANARY_BYTES * sizeof(uint32_t);
 
     // Print results
     #if DBG_PRINT_OUTPUT
@@ -221,47 +221,47 @@ static void lv_fill_argb8888_functionality(int w, int h, int stride, int unalign
     #endif
 
     char msg_buff[128];
-    sprintf(msg_buff, "LV Fill ARGB8888: w = %d, h = %d, stride = %d, unalign_bit = %d\n", w, h, stride, unalign_bit);
-    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_ansi, CANARY_BITS, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_asm, CANARY_BITS, msg_buff);
-    TEST_ASSERT_EQUAL_UINT32_ARRAY_MESSAGE((uint32_t *)dest_buff_asm + CANARY_BITS, (uint32_t *)dest_buff_ansi + CANARY_BITS, h * stride, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_ansi + (total_len - CANARY_BITS), CANARY_BITS, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_asm + (total_len - CANARY_BITS), CANARY_BITS, msg_buff);
+    sprintf(msg_buff, "LV Fill ARGB8888: w = %d, h = %d, stride = %d, unalign_byte = %d\n", w, h, stride, unalign_byte);
+    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_ansi, CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_asm, CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EQUAL_UINT32_ARRAY_MESSAGE((uint32_t *)dest_buff_asm + CANARY_BYTES, (uint32_t *)dest_buff_ansi + CANARY_BYTES, h * stride, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_ansi + (total_len - CANARY_BYTES), CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT32_MESSAGE(0, (uint32_t *)dest_buff_asm + (total_len - CANARY_BYTES), CANARY_BYTES, msg_buff);
 
     free(mem_ansi);
     free(mem_asm);
 }
 
-static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_bit)
+static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_byte)
 {
-    const unsigned int total_len = ((h * stride) + (CANARY_BITS * 2));
+    const unsigned int total_len = ((h * stride) + (CANARY_BYTES * 2));
 
-    uint16_t *mem_asm   = (uint16_t *)memalign(16, (total_len * sizeof(uint16_t)) + (unalign_bit * sizeof(uint8_t)));
-    uint16_t *mem_ansi  = (uint16_t *)memalign(16, (total_len * sizeof(uint16_t)) + (unalign_bit * sizeof(uint8_t)));
+    uint16_t *mem_asm   = (uint16_t *)memalign(16, (total_len * sizeof(uint16_t)) + (unalign_byte * sizeof(uint8_t)));
+    uint16_t *mem_ansi  = (uint16_t *)memalign(16, (total_len * sizeof(uint16_t)) + (unalign_byte * sizeof(uint8_t)));
 
     uint8_t *dest_buff_asm = NULL;
     uint8_t *dest_buff_ansi = NULL;
 
-    dest_buff_asm = (uint8_t *)mem_asm + unalign_bit;
-    dest_buff_ansi = (uint8_t *)mem_ansi + unalign_bit;
+    dest_buff_asm = (uint8_t *)mem_asm + unalign_byte;
+    dest_buff_ansi = (uint8_t *)mem_ansi + unalign_byte;
 
-    for (int i = 0; i < CANARY_BITS; i++){
+    for (int i = 0; i < CANARY_BYTES; i++){
         ((uint16_t *)dest_buff_asm)[i] = 0;
         ((uint16_t *)dest_buff_ansi)[i] = 0;
     }
 
-    for (int i = CANARY_BITS; i < (h * stride) + CANARY_BITS; i++){
+    for (int i = CANARY_BYTES; i < (h * stride) + CANARY_BYTES; i++){
         ((uint16_t *)dest_buff_asm)[i] = i;
         ((uint16_t *)dest_buff_ansi)[i] = i;
     }
 
-    for (int i = total_len - CANARY_BITS; i < total_len; i++){
+    for (int i = total_len - CANARY_BYTES; i < total_len; i++){
         ((uint16_t *)dest_buff_asm)[i] = 0;
         ((uint16_t *)dest_buff_ansi)[i] = 0;
     }
 
-    dest_buff_asm += CANARY_BITS * sizeof(uint16_t);
-    dest_buff_ansi += CANARY_BITS * sizeof(uint16_t);
+    dest_buff_asm += CANARY_BYTES * sizeof(uint16_t);
+    dest_buff_ansi += CANARY_BYTES * sizeof(uint16_t);
 
     _lv_draw_sw_blend_fill_dsc_t dsc_asm = {
         .dest_buf = (void *)dest_buff_asm,
@@ -290,8 +290,8 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
     ESP_LOGD(TAG_LV_FILL_FUNC, "RGB565 Calling ANSI file");
     lv_draw_sw_blend_color_to_rgb565(&dsc_ansi);
 
-    dest_buff_asm -= CANARY_BITS * sizeof(uint16_t);
-    dest_buff_ansi -= CANARY_BITS * sizeof(uint16_t);
+    dest_buff_asm -= CANARY_BYTES * sizeof(uint16_t);
+    dest_buff_ansi -= CANARY_BYTES * sizeof(uint16_t);
 
     // Print results
     #if DBG_PRINT_OUTPUT
@@ -302,12 +302,12 @@ static void lv_fill_rgb565_functionality(int w, int h, int stride, int unalign_b
     #endif
 
     char msg_buff[128];
-    sprintf(msg_buff, "LV Fill RGB565: w = %d, h = %d, stride = %d, unalign_bit = %d\n", w, h, stride, unalign_bit);
-    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_ansi, CANARY_BITS, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_asm, CANARY_BITS, msg_buff);
-    TEST_ASSERT_EQUAL_UINT16_ARRAY_MESSAGE((uint16_t *)dest_buff_asm + CANARY_BITS, (uint16_t *)dest_buff_ansi + CANARY_BITS, h * stride, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_ansi + (total_len - CANARY_BITS), CANARY_BITS, msg_buff);
-    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_asm + (total_len - CANARY_BITS), CANARY_BITS, msg_buff);
+    sprintf(msg_buff, "LV Fill RGB565: w = %d, h = %d, stride = %d, unalign_byte = %d\n", w, h, stride, unalign_byte);
+    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_ansi, CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_asm, CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EQUAL_UINT16_ARRAY_MESSAGE((uint16_t *)dest_buff_asm + CANARY_BYTES, (uint16_t *)dest_buff_ansi + CANARY_BYTES, h * stride, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_ansi + (total_len - CANARY_BYTES), CANARY_BYTES, msg_buff);
+    TEST_ASSERT_EACH_EQUAL_UINT16_MESSAGE(0, (uint16_t *)dest_buff_asm + (total_len - CANARY_BYTES), CANARY_BYTES, msg_buff);
 
     free(mem_asm);
     free(mem_ansi);
