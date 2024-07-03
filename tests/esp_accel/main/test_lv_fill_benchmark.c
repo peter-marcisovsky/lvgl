@@ -27,7 +27,7 @@
 #define WIDTH 128
 #define HEIGHT 128
 #define STRIDE WIDTH
-#define UNALIGN_BITS 1
+#define UNALIGN_BYTES 1
 #define BENCHMARK_CYCLES 1000
 
 // ------------------------------------------------- Macros and Types --------------------------------------------------
@@ -72,8 +72,8 @@ TEST_CASE_MULTIPLE_STAGES("LV Fill benchmark", "[lv_fill][benchmark]",
 static void argb8888_benchmark(void)
 {
     ESP_LOGI(TAG_LV_FILL_BENCH, "for ARGB8888 color format");
-    uint32_t *dest_array_align16  = (uint32_t *)memalign(16, WIDTH * HEIGHT * sizeof(uint32_t) + (UNALIGN_BITS * sizeof(uint8_t)));
-    uint32_t *dest_array_align1 = dest_array_align16 + (UNALIGN_BITS * sizeof(uint8_t));
+    uint32_t *dest_array_align16  = (uint32_t *)memalign(16, WIDTH * HEIGHT * sizeof(uint32_t) + (UNALIGN_BYTES * sizeof(uint8_t)));
+    uint32_t *dest_array_align1 = dest_array_align16 + (UNALIGN_BYTES * sizeof(uint8_t));
 
     bench_test_params_t test_params = {
         .lv_fill_func = &lv_draw_sw_blend_color_to_argb8888,
@@ -94,8 +94,8 @@ static void argb8888_benchmark(void)
 static void rgb565_benchmark(void)
 {
     ESP_LOGI(TAG_LV_FILL_BENCH, "for RGB565 color format");
-    uint16_t *dest_array_align16  = (uint16_t *)memalign(16, WIDTH * HEIGHT * sizeof(uint16_t) + (UNALIGN_BITS * sizeof(uint8_t)));
-    uint16_t *dest_array_align1 = dest_array_align16 + (UNALIGN_BITS * sizeof(uint8_t));
+    uint16_t *dest_array_align16  = (uint16_t *)memalign(16, WIDTH * HEIGHT * sizeof(uint16_t) + (UNALIGN_BYTES * sizeof(uint8_t)));
+    uint16_t *dest_array_align1 = dest_array_align16 + (UNALIGN_BYTES * sizeof(uint8_t));
 
     bench_test_params_t test_params = {
         .lv_fill_func = &lv_draw_sw_blend_color_to_rgb565,

@@ -36,9 +36,9 @@ typedef struct {
     unsigned int min_h;                     // Minimum height of the test array
     unsigned int max_w;                     // Maximum width of the test array
     unsigned int max_h;                     // Maximum height of the test array
-    unsigned int min_unalign_bit;           // Minimum amount of unaligned bits of the test array
-    unsigned int max_unalign_bit;           // Maximum amount of unaligned bits of the test array
-    unsigned int unalign_step;              // Increment step in bits unalignment of the test array
+    unsigned int min_unalign_byte;          // Minimum amount of unaligned bytes of the test array
+    unsigned int max_unalign_byte;          // Maximum amount of unaligned bytes of the test array
+    unsigned int unalign_step;              // Increment step in bytes unalignment of the test array
     unsigned int stride_step;               // Increment step in stride of the test array
     unsigned int test_combinations_count;   // Count of fest combinations
 } func_test_params_t;
